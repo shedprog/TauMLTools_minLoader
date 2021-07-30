@@ -91,6 +91,7 @@ for i in range(n_batches):
     checker = data_loader.MoveNext()
 
     if checker==False:
+       print("new file")
        data_loader.ReadFile(R.std.string(input_files[c]), 0, -1)
        c+=1
        continue
