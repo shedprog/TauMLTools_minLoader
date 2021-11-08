@@ -9,13 +9,15 @@ from python.ConfigParse import ConfigParse
 import os
 from glob import glob
 import multiprocessing as mp
-
+import yaml
 # R.gROOT.ProcessLine(".include ../../..")
 
 print("Compiling Setup classes...")
 
-R.gInterpreter.Declare(ConfigParse.create_scaling_input("configs/scaling_params_v1.json", "configs/training_v1.yaml", verbose=False))
-R.gInterpreter.Declare(ConfigParse.create_settings("configs/training_v1.yaml", verbose=False))
+with open(os.path.abspath( "configs/training_v1.yaml")) as f:
+    config = yaml.safe_load(f)
+R.gInterpreter.Declare(ConfigParse.create_scaling_input("configs/ShuffleMergeSpectral_trainingSamples-2_files_0_50.json", config, verbose=False))
+R.gInterpreter.Declare(ConfigParse.create_settings(config, verbose=False))
 
 print("Compiling DataLoader_main...")
 R.gInterpreter.Declare('#include "interface/DataLoader_main.h"')
@@ -24,6 +26,7 @@ n_tau          = R.Setup.n_tau
 n_inner_cells  = R.Setup.n_inner_cells
 n_outer_cells  = R.Setup.n_outer_cells
 n_fe_tau    = R.Setup.n_TauFlat
+n_gridglob  = R.Setup.n_GridGlobal
 n_pf_el     = R.Setup.n_PfCand_electron
 n_pf_mu     = R.Setup.n_PfCand_muon
 n_pf_chHad  = R.Setup.n_PfCand_chHad
@@ -35,6 +38,7 @@ tau_types   = R.Setup.tau_types_names.size()
 input_files = glob(f'{R.Setup.input_dir}*.root')
 
 n_grid_features = {
+    "GridGlobal" : n_gridglob,
     "PfCand_electron" : n_pf_el,
     "PfCand_muon" : n_pf_mu,
     "PfCand_chHad" : n_pf_chHad,
@@ -44,7 +48,9 @@ n_grid_features = {
     "Muon" : n_muon
 }
 
-input_grids =[ [ "PfCand_electron", "PfCand_gamma", "Electron" ], [ "PfCand_muon", "Muon" ], [ "PfCand_chHad", "PfCand_nHad" ] ]
+input_grids =[ [ "GridGlobal", "PfCand_electron", "PfCand_gamma", "Electron" ],
+               [ "GridGlobal", "PfCand_muon", "Muon" ],
+               [ "GridGlobal", "PfCand_chHad", "PfCand_nHad" ] ]
 
 input_files = []
 for root, dirs, files in os.walk(os.path.abspath(R.Setup.input_dir)):
@@ -53,10 +59,11 @@ for root, dirs, files in os.walk(os.path.abspath(R.Setup.input_dir)):
 
 data_loader = R.DataLoader()
 
-n_batches = 1000
+n_batches = 100
 n_batches_store = 10
 
-data_que = mp.Queue(maxsize = n_batches_store)
+from queue import Queue
+data_que = Queue(maxsize = n_batches_store)
 
 times = []
 
@@ -91,7 +98,6 @@ for i in range(n_batches):
     checker = data_loader.MoveNext()
 
     if checker==False:
-       print("new file")
        data_loader.ReadFile(R.std.string(input_files[c]), 0, -1)
        c+=1
        continue
@@ -118,14 +124,14 @@ for i in range(n_batches):
     print(i, " end: ",end-start, ' s.')
     times.append(end-start)
 
-    # for x in X:
-    #     if np.isnan(x).any():
-    #         print("Nan detected! element=",x.shape) 
-    #         print(np.argwhere(x))
-    #     if np.isinf(x).any():
-    #         print("Inf detected! element=",x.shape)
-    #     if np.amax(x)==0:
-    #         print("Empty tuple detected! element=",x.shape)
+    for x in X:
+        if np.isnan(x).any():
+            print("Nan detected! element=",x.shape) 
+            print(np.argwhere(x))
+        if np.isinf(x).any():
+            print("Inf detected! element=",x.shape)
+        if np.amax(x)==0:
+            print("Empty tuple detected! element=",x.shape)
 
 from statistics import mean
 print("Mean time: ", mean(times))

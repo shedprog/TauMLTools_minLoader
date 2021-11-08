@@ -2,7 +2,7 @@
 class ConfigParse:
     
     @staticmethod
-    def create_settings(input_file: str, verbose=False) -> str:
+    def create_settings(data: dict, verbose=False) -> str:
         '''
         The following subroutine parses the yaml config file and
         returns the following structures in the string format:
@@ -32,6 +32,7 @@ class ConfigParse:
 
         def create_namestruc(content: dict) -> str:
             types_map = {
+                    bool  : "Bool_t",
                     int   : "size_t",
                     float : "Double_t",
                     str   : "std::string",
@@ -46,6 +47,9 @@ class ConfigParse:
                     return "{{"+'},{'.join('{0},"{1}"'.format(key,input[key]) for key in input)+"}}"
                 elif type(input) == str:
                     return "\"" + str(input) + "\""
+                elif type(input) == bool:
+                    if input: return "true"
+                    else: return "false"
                 else:
                     return str(input)
             def items_float(input):
@@ -72,7 +76,8 @@ class ConfigParse:
             for features in content["Features_all"]:
                 number = len(content["Features_all"][features]) -  len(content["Features_disable"][features])
                 string += "const inline size_t n_" + str(features) + " = " + str(number) + ";\n"
-
+                if "SequenceLength" in  content: # sequence length
+                    string += "const inline size_t nSeq_" + str(features) + " = " + str(content["SequenceLength"][features]) + ";\n"
 
             string += "const inline std::vector<std::string> CellObjectTypes {\"" + \
                     "\",\"".join(content["CellObjectType"]) + \
@@ -111,6 +116,10 @@ class ConfigParse:
                 string += "template<> struct FeaturesHelper<{0}_Features> ".format(celltype) + "{\n"
                 string += "static constexpr CellObjectType object_type = CellObjectType::{0};\n".format(celltype)
                 string += "static constexpr size_t size = {0};\n".format(number)
+                if "SequenceLength" in content:
+                    if celltype in content["SequenceLength"]:
+                        string += "static constexpr size_t length = {0};\n".format(
+                            content["SequenceLength"][celltype])
                 string += "using scaler_type = Scaling::{0};\n".format(celltype) + "};\n\n"
 
             string += "using FeatureTuple = std::tuple<" \
@@ -119,17 +128,15 @@ class ConfigParse:
 
             return string
 
-        with open(input_file) as file:
-            data = yaml.safe_load(file)
         settings  = create_namestruc(data)
         settings  += "\n".join([create_enum(k,data) for k in data["Features_all"]])
         settings += create_gridobjects(data)
         if verbose:
             print(settings)
         return settings
-        
+
     @staticmethod
-    def create_scaling_input(input_scaling_file: str, input_cfg_file: str, verbose=False) -> str:
+    def create_scaling_input(input_scaling_file: str, training_cfg_data: dict, verbose=False) -> str:
         '''
         The following subroutine parses the json config file and
         returns the string with Scaling namespace, where
@@ -193,9 +200,8 @@ class ConfigParse:
 
         with open(input_scaling_file) as scaling_file:
             scaling_data = json.load(scaling_file)
-        with open(input_cfg_file) as cfg_file:
-            cfg_data = yaml.safe_load(cfg_file)
-        settings  = create_scaling(scaling_data, cfg_data)
+        settings  = create_scaling(scaling_data, training_cfg_data)
         if verbose:
             print(settings)
         return settings
+
