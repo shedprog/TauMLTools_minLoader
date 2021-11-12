@@ -9,7 +9,8 @@ from python.DataLoader import DataLoader
 with open(os.path.abspath( "configs/training_v1.yaml")) as f:
     config = yaml.safe_load(f)
 scaling  = os.path.abspath("configs/ShuffleMergeSpectral_trainingSamples-2_files_0_50.json")
-config["SetupNN"]["n_batches"] = 100
+config["SetupNN"]["n_batches"] = 1000
+config["Setup"]["n_tau"] = 1
 dataloader = DataLoader(config, scaling)
 
 gen_train = dataloader.get_generator(primary_set = True)
@@ -34,4 +35,5 @@ for epoch in range(1):
         diff.append(time_checkpoints[-1] - time_checkpoints[-2])
         print(i, " ", diff[-1], "s.")
 
+del diff[0]
 print("mean:", sum(diff)/len(diff))

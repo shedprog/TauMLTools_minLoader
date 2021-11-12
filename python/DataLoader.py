@@ -15,18 +15,18 @@ def LoaderThread(queue_out,
                  return_truth,
                  return_weights):
 
-    # data_source = DataSource(queue_files)
+    data_source = DataSource(queue_files)
     put_next = True
 
     while put_next:
 
-        # data = data_source.get()
-        # if data is None:
-        #     break
-        data = R.Data(R.Setup.n_tau, R.Setup.n_TauFlat, R.Setup.n_inner_cells, R.Setup.n_outer_cells, R.Setup.n_GridGlobal,
-                      R.Setup.n_PfCand_electron, R.Setup.n_PfCand_muon, R.Setup.n_PfCand_chHad, R.Setup.n_PfCand_nHad,
-                      R.Setup.n_PfCand_gamma, R.Setup.n_Electron, R.Setup.n_Muon, R.Setup.tau_types_names.size()
-                      );
+        data = data_source.get()
+        if data is None:
+            break
+        # data = R.Data(R.Setup.n_tau, R.Setup.n_TauFlat, R.Setup.n_inner_cells, R.Setup.n_outer_cells, R.Setup.n_GridGlobal,
+        #               R.Setup.n_PfCand_electron, R.Setup.n_PfCand_muon, R.Setup.n_PfCand_chHad, R.Setup.n_PfCand_nHad,
+        #               R.Setup.n_PfCand_gamma, R.Setup.n_Electron, R.Setup.n_Muon, R.Setup.tau_types_names.size()
+        #               )
 
         X_all = GetData.getX(data, batch_size, n_grid_features, n_flat_features,
                              input_grids, n_inner_cells, n_outer_cells)
