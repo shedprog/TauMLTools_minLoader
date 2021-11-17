@@ -2,6 +2,10 @@ from multiprocessing import Process, Queue, Array
 import multiprocessing as mp
 import numpy as np
 import time
+import gc
+
+class TerminateGenerator:
+    pass
 
 def get_array():
     return np.concatenate((
@@ -59,7 +63,7 @@ class ArrayQueue(object):
             # put the original item on the queue (as a tuple, so we know it's not an ID)
             new_item = (item,)
         self.q.put(new_item, *args, **kwargs)
-
+    @profile
     def get(self, *args, **kwargs):
         item = self.q.get(*args, **kwargs)
         if type(item) is tuple:
@@ -75,8 +79,10 @@ class ArrayQueue(object):
 
 def writer(output):
 
-
+    i = 0
     while True:
+        if i>10:
+            break
         # X = [
         #     np.random.uniform(-1, 1, size = (250, 43)),
         #     np.random.uniform(-1, 1, size = (250, 11, 11, 86)),
@@ -95,16 +101,21 @@ def writer(output):
 
         X = get_array()
         output.put(X)
+        i=i+1
 
+    output.put(0)
+    print("finish!")
+
+@profile
 def gen():
-    N = 10
+    N = 3
     # output = mp.Queue(20)
     X = get_array()
     dtype = X.dtype
     shape = X.shape
     byte_count = len(X.data)
     print(dtype, shape, byte_count)
-    output = ArrayQueue(template=X, maxsize=30)
+    output = ArrayQueue(template=X, maxsize=20)
     processes = []
     for i in range(N):
         processes.append(
@@ -112,11 +123,19 @@ def gen():
         processes[-1].deamon = True
         processes[-1].start()
 
-    while True:
-        yield output.get()
+    finish_counter = 0
+    while finish_counter < N:
+        print(finish_counter)
+        item = output.get()
+        print("got")
+        if isinstance(item, int):
+            finish_counter+=1
+        else:
+            yield item
 
     for i, pr in enumerate(processes):
         pr.join()
+    gc.collect()
 
 if __name__=='__main__':
 

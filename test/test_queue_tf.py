@@ -1,4 +1,5 @@
 import multiprocessing as mp
+import tensorflow as tf
 import numpy as np
 import time
 
@@ -7,7 +8,7 @@ def writer(output):
 
     while True:
         X = [
-        np.random.uniform(-1, 1, size = (250, 43)),
+            np.random.uniform(-1, 1, size = (250, 43)),
             np.random.uniform(-1, 1, size = (250, 11, 11, 86)),
             np.random.uniform(-1, 1, size = (250, 11, 11, 64)),
             np.random.uniform(-1, 1, size = (250, 11, 11, 38)),
@@ -17,11 +18,33 @@ def writer(output):
             np.random.uniform(-1, 1, size = (250,)),
             np.random.uniform(-1, 1, size = (250, 4)),
         ]
-        output.put(X)
+        # X = [ tf.convert_to_tensor(e, dtype=tf.float32) for e in X ]
+        print("try")
+        output.enqueue(X)
+        print("done")
+        break
 
 def gen():
     N = 5
-    output = mp.Queue(20)
+    # output = mp.Queue(20)
+    output = tf.queue.FIFOQueue(20, [tf.float32,
+                          tf.float32,
+                          tf.float32,
+                          tf.float32,
+                          tf.float32,
+                          tf.float32,
+                          tf.float32,
+                          tf.float32,
+                          tf.float32,],
+                    shapes=((250, 43),
+                            (250, 11, 11, 86),
+                            (250, 11, 11, 64),
+                            (250, 11, 11, 38),
+                            (250, 21, 21, 86),
+                            (250, 21, 21, 64),
+                            (250, 21, 21, 38),
+                            (250,), (250, 4),
+                            ))
     processes = []
     for i in range(N):
         processes.append(
@@ -30,7 +53,11 @@ def gen():
         processes[-1].start()
 
     while True:
-        yield output.get()
+        print(output.size())
+        yield 0
+        # print("try get")
+        # yield output.dequeue()
+        # print("done get")
 
     for i, pr in enumerate(processes):
         pr.join()
