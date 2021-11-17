@@ -97,7 +97,7 @@ class DataLoader (DataLoaderBase):
         print("Files for validation:", len(self.val_files))
 
 
-    def get_generator(self, primary_set = True, return_truth = True, return_weights = False):
+    def get_generator(self, primary_set = True, return_truth = True, return_weights = True):
 
         _files = self.train_files if primary_set else self.val_files
         if len(_files)==0:
@@ -210,7 +210,7 @@ class DataLoader (DataLoaderBase):
 
         return netConf
 
-    def get_input_config(self):
+    def get_input_config(self, return_truth = True, return_weights = True):
         # Input tensor shape and type
         input_shape, input_types = [], []
         input_shape.append(tuple([None, len(self.get_branches(self.config,"TauFlat"))]))
@@ -220,7 +220,13 @@ class DataLoader (DataLoaderBase):
                 n_f = sum([len(self.get_branches(self.config,cell_type)) for cell_type in f_group])
                 input_shape.append(tuple([None, self.n_cells[grid], self.n_cells[grid], n_f]))
                 input_types.append(tf.float32)
-        input_shape = tuple([tuple(input_shape),(None, self.tau_types)])
-        input_types = tuple([tuple(input_types),(tf.float32)])
+        input_shape=(tuple(input_shape),)
+        input_types=(tuple(input_types),)
+        if return_truth:
+            input_shape = input_shape + ((None, self.tau_types),)
+            input_types = input_types + (tf.float32,)
+        if return_weights:
+            input_shape = input_shape + ((None),)
+            input_types = input_types + (tf.float32,)
 
         return input_shape, input_types
