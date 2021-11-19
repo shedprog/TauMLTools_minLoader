@@ -17,20 +17,6 @@ def writer(output):
             np.random.uniform(-1, 1, size = (250,)),
             np.random.uniform(-1, 1, size = (250, 4)),
         ]
-            # X = [
-        # X = np.concatenate((
-        #     np.random.uniform(-1, 1, size = (250, 43)).flatten(),
-        #     np.random.uniform(-1, 1, size = (250, 11, 11, 86)).flatten(),
-        #     np.random.uniform(-1, 1, size = (250, 11, 11, 64)).flatten(),
-        #     np.random.uniform(-1, 1, size = (250, 11, 11, 38)).flatten(),
-        #     np.random.uniform(-1, 1, size = (250, 21, 21, 86)).flatten(),
-        #     np.random.uniform(-1, 1, size = (250, 21, 21, 64)).flatten(),
-        #     np.random.uniform(-1, 1, size = (250, 21, 21, 38)).flatten(),
-        #     np.random.uniform(-1, 1, size = (250,)).flatten(),
-        #     np.random.uniform(-1, 1, size = (250, 4)).flatten(),
-        # ), axis=0)
-        # print(X.shape)
-        # ]
         output.put(X)
 
 def gen():
@@ -72,3 +58,7 @@ print("mean:", sum(diff)/len(diff))
 # 3  workers - mean 0.451 s
 # 5  workers - mean 0.372 s
 # 10 workers - mean 0.484 s
+
+# Main benchmark naf-cms22:
+# 5 workers - mean 0.655 s. 
+# 10 workers - mean 0.621 s.

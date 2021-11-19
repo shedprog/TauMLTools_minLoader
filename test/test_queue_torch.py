@@ -8,29 +8,18 @@ def writer(output):
 
     while True:
 
-        # X = [
-        #     np.random.uniform(-1, 1, size = (250, 43)),
-        #     np.random.uniform(-1, 1, size = (250, 11, 11, 86)),
-        #     np.random.uniform(-1, 1, size = (250, 11, 11, 64)),
-        #     np.random.uniform(-1, 1, size = (250, 11, 11, 38)),
-        #     np.random.uniform(-1, 1, size = (250, 21, 21, 86)),
-        #     np.random.uniform(-1, 1, size = (250, 21, 21, 64)),
-        #     np.random.uniform(-1, 1, size = (250, 21, 21, 38)),
-        #     np.random.uniform(-1, 1, size = (250,)),
-        #     np.random.uniform(-1, 1, size = (250, 4)),
-        # ]
-        X = np.concatenate((
-            np.random.uniform(-1, 1, size = (250, 43)).flatten(),
-            np.random.uniform(-1, 1, size = (250, 11, 11, 86)).flatten(),
-            np.random.uniform(-1, 1, size = (250, 11, 11, 64)).flatten(),
-            np.random.uniform(-1, 1, size = (250, 11, 11, 38)).flatten(),
-            np.random.uniform(-1, 1, size = (250, 21, 21, 86)).flatten(),
-            np.random.uniform(-1, 1, size = (250, 21, 21, 64)).flatten(),
-            np.random.uniform(-1, 1, size = (250, 21, 21, 38)).flatten(),
-            np.random.uniform(-1, 1, size = (250,)).flatten(),
-            np.random.uniform(-1, 1, size = (250, 4)).flatten(),
-        ), axis=0)
-        X = torch.tensor(X, dtype=torch.float32)
+        X = (
+            np.random.uniform(-1, 1, size = (250, 43)),
+            np.random.uniform(-1, 1, size = (250, 11, 11, 86)),
+            np.random.uniform(-1, 1, size = (250, 11, 11, 64)),
+            np.random.uniform(-1, 1, size = (250, 11, 11, 38)),
+            np.random.uniform(-1, 1, size = (250, 21, 21, 86)),
+            np.random.uniform(-1, 1, size = (250, 21, 21, 64)),
+            np.random.uniform(-1, 1, size = (250, 21, 21, 38)),
+            np.random.uniform(-1, 1, size = (250,)),
+            np.random.uniform(-1, 1, size = (250, 4)),
+        )
+        X = tuple([ torch.tensor(e, dtype=torch.float32) for e in X ])
         output.put(X)
 
 def gen():
@@ -45,12 +34,13 @@ def gen():
         processes[-1].start()
 
     while True:
-        yield output.get()
+        yield tuple([tf.convert_to_tensor(x.numpy()) for x in output.get()])
 
     for i, pr in enumerate(processes):
         pr.join()
 
 if __name__=='__main__':
+    print("start")
 
     time_checkpoints = [time.time()]
     diff = []
@@ -59,9 +49,16 @@ if __name__=='__main__':
         time_checkpoints.append(time.time())
         diff.append(time_checkpoints[-1] - time_checkpoints[-2])
         print(i, " ", diff[-1], "s.")
-        if i>200:
+        if i>100:
             break
 
 
 del diff[0]
 print("mean:", sum(diff)/len(diff))
+
+# Main benchmark naf-cms22:
+# 5 workers - mean 0.094 s.
+# 10 workers - mean 0.051 s.
+# with conversion to tensorflow:
+# 5 workers - mean 0.092 s.
+# 10 workers - mean 0.052 s.
