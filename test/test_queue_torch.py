@@ -4,9 +4,16 @@ import torch
 import time
 import numpy as np
 
-def writer(output):
+# class TerminateGenerator:
+#     pass
 
+def writer(output, id_, terminator):
+
+    i = 0
     while True:
+
+        if i>10:
+            break
 
         X = (
             np.random.uniform(-1, 1, size = (250, 43)),
@@ -21,20 +28,39 @@ def writer(output):
         )
         X = tuple([ torch.tensor(e, dtype=torch.float32) for e in X ])
         output.put(X)
+        i=i+1
+
+    output.put(id_)
+    print("stop", id_)
+    terminator[id_].wait()
 
 def gen():
-    N = 10
+    print("point 1")
+    N = 5
     output = mp.Queue(20)
     # output = fmq.Queue(maxsize=20)
     processes = []
+    terminators = [ mp.Event() for _ in range(N) ]
     for i in range(N):
         processes.append(
-        mp.Process(target = writer, args = (output,)))
+        mp.Process(target = writer, args = (output, i, terminators,)))
         # processes[-1].deamon = True
         processes[-1].start()
 
+    finish_counter = 0
+
+    print("point 2")
     while True:
-        yield tuple([tf.convert_to_tensor(x.numpy()) for x in output.get()])
+    
+        item = output.get()
+        if isinstance(item, int):
+            finish_counter+=1
+            terminators[item].set()
+        else:
+            yield tuple([tf.convert_to_tensor(x.clone().numpy()) for x in item])
+        
+        if finish_counter>=N:
+            break
 
     for i, pr in enumerate(processes):
         pr.join()

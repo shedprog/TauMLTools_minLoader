@@ -20,7 +20,7 @@ def writer(output):
         output.put(X)
 
 def gen():
-    N = 5
+    N = 10
     output = mp.Queue(20)
     processes = []
     for i in range(N):

@@ -3,11 +3,10 @@ import glob
 
 from .DataLoaderBaseTorch import *
 
-# def torch_to_tensorflow(X):
-#     grid = X[]
-
 def LoaderThread(queue_out,
                  queue_files,
+                 terminators,
+                 identifier,
                  input_grids,
                  batch_size,
                  n_inner_cells,
@@ -24,6 +23,7 @@ def LoaderThread(queue_out,
     while put_next:
 
         data = data_source.get()
+
         if data is None:
             break
         # data = R.Data(R.Setup.n_tau, R.Setup.n_TauFlat, R.Setup.n_inner_cells, R.Setup.n_outer_cells, R.Setup.n_GridGlobal,
@@ -33,10 +33,6 @@ def LoaderThread(queue_out,
 
         X_all = GetData.getX(data, batch_size, n_grid_features, n_flat_features,
                              input_grids, n_inner_cells, n_outer_cells)
-
-        if nan_check(X_all):
-            raise RuntimeError("Terminate: nans detected in the tensor.")
-
         X_all = tuple(X_all)
 
         if return_weights:
@@ -55,7 +51,8 @@ def LoaderThread(queue_out,
 
         put_next = queue_out.put(item)
 
-    queue_out.put_terminate()
+    queue_out.put_terminate(identifier)
+    terminators[identifier].wait()
 
 class DataLoader (DataLoaderBase):
 
@@ -103,27 +100,30 @@ class DataLoader (DataLoaderBase):
     def get_generator(self, primary_set = True, return_truth = True, return_weights = True):
 
         _files = self.train_files if primary_set else self.val_files
+        
         if len(_files)==0:
             raise RuntimeError(("Taining" if primary_set else "Validation")+\
                                " file list is empty.")
 
         n_batches = self.n_batches if primary_set else self.n_batches_val
         print("Number of workers in DataLoader: ", self.n_load_workers)
-        
-        def _generator():
 
+        converter = torch_to_tf(return_truth, return_weights)
+
+        def _generator():
             finish_counter = 0
 
             queue_files = mp.Queue()
             [ queue_files.put(file) for file in _files ]
 
             queue_out = QueueEx(max_size = self.max_queue_size, max_n_puts = n_batches)
+            terminators = [ mp.Event() for _ in range(self.n_load_workers) ]
 
             processes = []
             for i in range(self.n_load_workers):
                 processes.append(
                 mp.Process(target = LoaderThread,
-                        args = (queue_out, queue_files,
+                        args = (queue_out, queue_files, terminators, i,
                                 self.input_grids, self.batch_size, self.n_inner_cells,
                                 self.n_outer_cells, self.n_flat_features, self.n_grid_features,
                                 self.tau_types, return_truth, return_weights,)))
@@ -131,16 +131,13 @@ class DataLoader (DataLoaderBase):
                 processes[-1].start()
 
             while finish_counter < self.n_load_workers:
-
                 item = queue_out.get()
-
-                if isinstance(item, TerminateGenerator):
+                if isinstance(item, int):
                     finish_counter+=1
+                    terminators[item].set()
                 else:
-                    #(((None, 43), (None, 11, 11, 86), (None, 11, 11, 64), (None, 11, 11, 38), (None, 21, 21, 86), (None, 21, 21, 64), (None, 21, 21, 38)), (None, 4), None)
-                    res = tuple([tuple([x.numpy() for x in item[0]]), item[1].numpy(), item[2].numpy()])
-                    yield res
-
+                    yield converter(item)
+                    
             queue_out.clear()
             ugly_clean(queue_files)
 

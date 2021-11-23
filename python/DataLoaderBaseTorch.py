@@ -12,8 +12,26 @@ import os
 import time
 import torch
 
-class TerminateGenerator:
-    pass
+# class TerminateGenerator:
+#     pass
+
+def torch_to_tf(return_truth = True, return_weights = True):
+
+    def with_both(X):
+        return tuple([tuple([x.clone().numpy() for x in X[0]]),
+                      X[1].clone().numpy(),
+                      X[2].clone().numpy()])
+
+    def with_truth(X):
+        return tuple([tuple([x.clone().numpy() for x in X[0]]),
+                     X[1].clone().numpy()])
+
+    if return_truth and return_weights:
+        return with_both
+    elif return_truth:
+        return with_truth
+    else:
+        raise RuntimeError("Error: conversion rule from torch.tensor is unknown!")
 
 def ugly_clean(queue):
     while True:
@@ -26,13 +44,16 @@ def ugly_clean(queue):
     if queue.qsize()!=0:
         raise RuntimeError("Error: queue was not clean properly.")
 
-def nan_check(Xf):
-    for x in Xf:
-        if np.isnan(x).any():
-            print("Nan detected! element=",x.shape) 
-            print(np.argwhere(np.isnan(x)))
-            return True
-    return False
+# def nan_check(Xf):
+#     for x in Xf:
+#         print("A ->",x.shape, torch.isnan(x).any())
+#         if torch.isnan(x).any():
+#             print("A -> NOT!")
+#             print("Nan detected! element=",x.shape)
+#             print(torch.where(torch.isnan(x), x, 0.))
+#             return True
+#         print("A --++>")
+#     return False
 
 class QueueEx:
     def __init__(self, max_size=0, max_n_puts=math.inf):
@@ -55,8 +76,8 @@ class QueueEx:
                     pass
             time.sleep(retry_interval)
     
-    def put_terminate(self):
-        self.mp_queue.put(TerminateGenerator())
+    def put_terminate(self, value):
+        self.mp_queue.put(value)
         
     def get(self):
         return self.mp_queue.get()
@@ -112,8 +133,12 @@ class GetData():
     def getdata(_obj_f,
                 _reshape,
                 _dtype=np.float32):
-        x = torch.from_numpy(np.copy(np.frombuffer(_obj_f.data(), dtype=_dtype, count=_obj_f.size())))
-        return x if _reshape==-1 else torch.reshape(x, _reshape)
+        x = np.copy(np.frombuffer(_obj_f.data(), dtype=_dtype, count=_obj_f.size()))
+        if np.isnan(x).any():
+            print("Nan detected! element=",x.shape)
+            print(np.argwhere(np.isnan(x)))
+            raise RuntimeError("Terminate: nans detected in the tensor.")
+        return torch.from_numpy(x) if _reshape==-1 else torch.reshape(torch.from_numpy(x), _reshape)
 
     @staticmethod
     def getgrid(_obj_grid,
